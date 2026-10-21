@@ -61,29 +61,36 @@ export function Battle() {
   const maxHp = useBattleStore((s) => s.maxHp);
   const kills = useBattleStore((s) => s.kills);
   const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
   const shellRef = useRef<HTMLDivElement>(null);
+
+  // Keep ref in sync so event handlers never need [paused] as a dependency
+  pausedRef.current = paused;
+  game.paused = paused;
 
   useEffect(() => {
     const blockSpace = (e: KeyboardEvent) => {
       if (e.code === "Space") e.preventDefault();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Escape") {
-        setPaused((p) => {
-          const next = !p;
-          game.paused = next;
-          if (next) {
-            document.exitPointerLock?.();
-            game.input.fire = false;
-          }
-          return next;
-        });
-      }
+      if (e.code !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setPaused((p) => {
+        const next = !p;
+        pausedRef.current = next;
+        game.paused = next;
+        if (next) {
+          document.exitPointerLock?.();
+          game.input.fire = false;
+        }
+        return next;
+      });
     };
     const onDown = (e: MouseEvent) => {
       if (e.button === 0) {
         e.preventDefault();
-        if (!paused) game.input.fire = true;
+        if (!pausedRef.current) game.input.fire = true;
       }
     };
     const onUp = (e: MouseEvent) => {
@@ -91,7 +98,7 @@ export function Battle() {
     };
     const onContext = (e: Event) => e.preventDefault();
     const onClick = () => {
-      if (!paused && shellRef.current && document.pointerLockElement == null) {
+      if (!pausedRef.current && shellRef.current && document.pointerLockElement == null) {
         shellRef.current.requestPointerLock();
       }
     };
@@ -103,6 +110,7 @@ export function Battle() {
     window.addEventListener("contextmenu", onContext);
     window.addEventListener("click", onClick);
 
+    // Cleanup ONLY when leaving battle (unmount) — not on pause toggle
     return () => {
       window.removeEventListener("keydown", blockSpace);
       window.removeEventListener("keydown", onKey);
@@ -112,11 +120,11 @@ export function Battle() {
       window.removeEventListener("click", onClick);
       document.exitPointerLock?.();
       game.input.fire = false;
-      // persist progress when leaving battle
+      game.paused = false;
       useTankStore.getState().persist();
       resetGame();
     };
-  }, [paused]);
+  }, []);
 
   return (
     <div className="battle" ref={shellRef}>

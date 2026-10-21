@@ -80,6 +80,9 @@ export function EnemySpawner() {
   const betweenT = useRef(2); // start first wave after 2s
   const spawnedForWave = useRef(0);
   const need = useRef(enemiesForWave(1));
+  const enemyCountRef = useRef(0);
+
+  enemyCountRef.current = enemies.length;
 
   useFrame((_, delta) => {
     if (game.paused) return;
@@ -115,16 +118,26 @@ export function EnemySpawner() {
         .setWaveEnemiesLeft(need.current - spawnedForWave.current + living);
     }
 
-    // Wave clear: all spawned and none living
-    if (spawnedForWave.current >= need.current && living === 0) {
-      // report wave clear for tier unlocks
+    // Wave clear only when all spawned AND none left in map OR React list
+    const stillSpawning = spawnedForWave.current < need.current;
+    if (
+      !stillSpawning &&
+      need.current > 0 &&
+      spawnedForWave.current >= need.current &&
+      living === 0 &&
+      enemyCountRef.current === 0
+    ) {
       useTankStore.getState().reportWave(wave.current);
+      const cleared = wave.current;
       wave.current += 1;
       between.current = true;
       betweenT.current = 4;
-      useBattleStore.getState().setWarning(`WAVE ${wave.current - 1} CLEARED`);
+      setEnemies([]); // no leftovers into next wave
+      useBattleStore.getState().setWarning("WAVE " + cleared + " CLEARED");
     } else {
-      useBattleStore.getState().setWaveEnemiesLeft(living + (need.current - spawnedForWave.current));
+      useBattleStore
+        .getState()
+        .setWaveEnemiesLeft(living + Math.max(0, need.current - spawnedForWave.current));
     }
   });
 
