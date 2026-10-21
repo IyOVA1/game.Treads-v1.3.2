@@ -74,7 +74,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(300px, 380px) 1fr;
+  grid-template-columns: minmax(350px, 380px) 1fr;
 }
 
 .garage-sidebar {
